@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#f7f7f4" />
+    <title>Fyle</title>
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/assets/app.css" />
+    <script src="/assets/vendor/webauthn.js" defer></script>
+    <script src="/assets/app.js" defer></script>
+  </head>
+  <body>
+    <div id="app" aria-live="polite"></div>
+    <div class="toast" id="toast" role="status" hidden></div>
+    <div class="drop-overlay" id="drop-overlay" hidden>
+      <div class="drop-overlay-inner">
+        <svg class="icon icon-lg"><use href="#i-upload" /></svg>
+        <p class="display-md">Drop to upload</p>
+      </div>
+    </div>
+
+    <!-- ── Sign in ─────────────────────────────────────────────── -->
+    <template id="tpl-login">
+      <main class="auth">
+        <div class="auth-inner">
+          <span class="wordmark wordmark-lg"
+            ><svg class="wordmark-mark" aria-hidden="true"><use href="#i-logo" /></svg>Fyle</span
+          >
+          <h1 class="display-md auth-title">Welcome back</h1>
+          <p class="lede auth-lede" data-ref="lede"></p>
+
+          <form class="card auth-card" data-ref="password-form" hidden>
+            <label class="field">
+              <span class="field-label">Admin password</span>
+              <input
+                class="input"
+                type="password"
+                name="password"
+                autocomplete="current-password"
+                required
+              />
+            </label>
+            <button class="btn btn-primary btn-block" type="submit">Sign in</button>
+          </form>
+
+          <form class="card auth-card" data-ref="pin-form" hidden>
+            <label class="pin" data-ref="pin">
+              <input
+                type="password"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                autocomplete="off"
+                name="pin"
+                aria-label="PIN"
+              />
+              <span class="pin-boxes" aria-hidden="true" data-ref="pin-boxes"></span>
+            </label>
+          </form>
+
+          <div class="card auth-card" data-ref="passkey-box" hidden>
+            <button class="btn btn-ink btn-block btn-lg" type="button" data-ref="passkey-btn">
+              <svg class="icon"><use href="#i-passkey" /></svg>
+              Sign in with passkey
+            </button>
+          </div>
+
+          <p class="form-error" role="alert" data-ref="error"></p>
+          <button class="text-link auth-switch" type="button" data-ref="switch" hidden>
+            Use admin password instead
+          </button>
+        </div>
+      </main>
+    </template>
+
+    <!-- ── App shell ───────────────────────────────────────────── -->
+    <template id="tpl-app">
+      <header class="topnav">
+        <div class="container topnav-inner">
+          <a class="wordmark" href="#/"
+            ><svg class="wordmark-mark" aria-hidden="true"><use href="#i-logo" /></svg>Fyle</a
+          >
+          <nav class="nav-links" aria-label="Main">
+            <a href="#/" data-nav="files">Files</a>
+            <a href="#/settings" data-nav="settings">Settings</a>
+          </nav>
+          <button class="btn btn-secondary btn-sm" type="button" data-ref="logout">Sign out</button>
+        </div>
+      </header>
+
+      <main class="container">
+        <!-- Files -->
+        <section class="view" data-view="files">
+          <div class="page-head">
+            <p class="eyebrow">Files</p>
+            <h1 class="display-lg">Drop a file. Share the link.</h1>
+            <p class="lede">
+              Links download the file straight away — no landing page. Paste them into Downloader on
+              Fire TV, a browser, <span class="mono-inline">wget</span>, or anything that fetches a
+              URL.
+            </p>
+          </div>
+
+          <div class="dropzone" data-ref="dropzone" role="button" tabindex="0">
+            <svg class="icon icon-lg"><use href="#i-upload" /></svg>
+            <div class="dropzone-text">
+              <p class="title-md">Drop files here, paste, or choose</p>
+              <p class="meta" data-ref="limit"></p>
+            </div>
+            <span class="btn btn-primary">Choose files</span>
+            <input type="file" multiple hidden data-ref="picker" />
+          </div>
+          <input type="file" hidden data-ref="replace-picker" />
+
+          <ul class="uploads" data-ref="uploads" aria-label="Uploads"></ul>
+
+          <section class="card files" aria-labelledby="files-heading">
+            <div class="files-head">
+              <h2 class="title-sm" id="files-heading">
+                <span data-ref="count">Files</span>
+                <span class="meta" data-ref="storage"></span>
+              </h2>
+              <label class="search">
+                <svg class="icon"><use href="#i-search" /></svg>
+                <input
+                  class="input input-sm"
+                  type="search"
+                  placeholder="Search files"
+                  aria-label="Search files"
+                  data-ref="search"
+                />
+              </label>
+            </div>
+            <ul class="file-list" data-ref="files"></ul>
+            <div class="empty" data-ref="empty" hidden>
+              <p class="display-sm">Nothing here yet.</p>
+              <p class="meta">Drop a file above. Its link serves the file itself:</p>
+              <div class="ide-pane">
+                <span class="ide-muted">$</span> curl -I <span data-ref="example-url"></span><br />
+                <span class="ide-ok">HTTP/1.1 200 OK</span><br />
+                Content-Type: application/vnd.android.package-archive<br />
+                Content-Disposition: attachment; filename="app.apk"
+              </div>
+            </div>
+            <p class="empty empty-search meta" data-ref="no-match" hidden>No files match.</p>
+          </section>
+        </section>
+
+        <!-- Settings -->
+        <section class="view" data-view="settings" hidden>
+          <div class="page-head">
+            <p class="eyebrow">Settings</p>
+            <h1 class="display-lg">How you sign in.</h1>
+            <p class="lede">
+              Pick one. The admin password from your
+              <span class="mono-inline">.env</span> file always works as a backup.
+            </p>
+          </div>
+
+          <div class="methods" role="radiogroup" aria-label="Sign-in method" data-ref="methods">
+            <button class="method" type="button" role="radio" data-method="password">
+              <svg class="icon"><use href="#i-key" /></svg>
+              <span class="title-md">Password</span>
+              <span class="method-desc">The <code>ADMIN_PASSWORD</code> from your .env file.</span>
+              <span class="badge" data-status></span>
+            </button>
+            <button class="method" type="button" role="radio" data-method="pin">
+              <svg class="icon"><use href="#i-pin" /></svg>
+              <span class="title-md">PIN</span>
+              <span class="method-desc">4–8 digits. Quickest on phones and tablets.</span>
+              <span class="badge" data-status></span>
+            </button>
+            <button class="method" type="button" role="radio" data-method="passkey">
+              <svg class="icon"><use href="#i-passkey" /></svg>
+              <span class="title-md">Passkey</span>
+              <span class="method-desc">Face ID, Touch ID, Windows Hello or a security key.</span>
+              <span class="badge" data-status></span>
+            </button>
+          </div>
+
+          <div class="panels">
+            <section class="card panel" aria-labelledby="pin-heading">
+              <h2 class="display-sm" id="pin-heading">PIN</h2>
+              <p class="meta" data-ref="pin-status"></p>
+              <form class="pin-setup" data-ref="pin-setup" novalidate>
+                <label class="field">
+                  <span class="field-label">New PIN</span>
+                  <input
+                    class="input mono"
+                    type="password"
+                    inputmode="numeric"
+                    pattern="[0-9]*"
+                    maxlength="8"
+                    autocomplete="new-password"
+                    placeholder="4–8 digits"
+                    name="pin"
+                  />
+                </label>
+                <label class="field">
+                  <span class="field-label">Confirm</span>
+                  <input
+                    class="input mono"
+                    type="password"
+                    inputmode="numeric"
+                    pattern="[0-9]*"
+                    maxlength="8"
+                    autocomplete="new-password"
+                    placeholder="Same again"
+                    name="confirm"
+                  />
+                </label>
+                <div class="row-actions">
+                  <button class="btn btn-ink" type="submit" data-ref="pin-save">Save PIN</button>
+                  <button class="text-link danger" type="button" data-ref="pin-remove" hidden>
+                    Remove PIN
+                  </button>
+                </div>
+              </form>
+            </section>
+
+            <section class="card panel" aria-labelledby="passkey-heading">
+              <h2 class="display-sm" id="passkey-heading">Passkeys</h2>
+              <p class="meta" data-ref="passkey-status"></p>
+              <ul class="plain-list" data-ref="passkeys"></ul>
+              <div class="row-actions">
+                <button class="btn btn-ink" type="button" data-ref="passkey-add">
+                  <svg class="icon"><use href="#i-plus" /></svg>
+                  Add a passkey
+                </button>
+              </div>
+              <p class="notice" data-ref="passkey-warning" hidden></p>
+            </section>
+          </div>
+
+          <section class="card panel" aria-labelledby="devices-heading">
+            <div class="panel-head">
+              <h2 class="display-sm" id="devices-heading">Signed-in devices</h2>
+              <button class="btn btn-secondary btn-sm" type="button" data-ref="signout-others">
+                Sign out other devices
+              </button>
+            </div>
+            <ul class="plain-list" data-ref="sessions"></ul>
+          </section>
+        </section>
+      </main>
+    </template>
+
+    <!-- ── Rows ───────────────────────────────────────────────── -->
+    <template id="tpl-file">
+      <li class="file">
+        <div class="file-main">
+          <span class="badge file-ext" data-ref="ext"></span>
+          <div class="file-text">
+            <p class="file-name" data-ref="name"></p>
+            <p class="file-meta" data-ref="meta"></p>
+          </div>
+        </div>
+        <div class="file-share">
+          <button class="link-chip" type="button" data-action="copy" data-ref="link"></button>
+          <button class="btn btn-secondary btn-sm copy-btn" type="button" data-action="copy">
+            <svg class="icon"><use href="#i-copy" /></svg>
+            <span>Copy link</span>
+          </button>
+          <div class="file-tools">
+            <button
+              class="icon-btn"
+              type="button"
+              data-action="edit"
+              aria-label="Edit link or name"
+              title="Edit link or name"
+            >
+              <svg class="icon"><use href="#i-edit" /></svg>
+            </button>
+            <button
+              class="icon-btn"
+              type="button"
+              data-action="replace"
+              aria-label="Replace file, keep link"
+              title="Replace file, keep link"
+            >
+              <svg class="icon"><use href="#i-replace" /></svg>
+            </button>
+            <button
+              class="icon-btn icon-btn-danger"
+              type="button"
+              data-action="delete"
+              aria-label="Delete"
+              title="Delete"
+            >
+              <svg class="icon"><use href="#i-trash" /></svg>
+              <span class="confirm-label">Delete?</span>
+            </button>
+          </div>
+        </div>
+        <form class="file-edit" data-ref="edit" hidden>
+          <label class="field">
+            <span class="field-label">Link</span>
+            <span class="input-prefix">
+              <span class="input-prefix-text" data-ref="host"></span>
+              <input
+                class="input mono"
+                name="slug"
+                autocomplete="off"
+                spellcheck="false"
+                autocapitalize="none"
+              />
+            </span>
+          </label>
+          <label class="field">
+            <span class="field-label">Download name</span>
+            <input class="input" name="name" autocomplete="off" spellcheck="false" />
+          </label>
+          <div class="row-actions">
+            <button class="btn btn-ink btn-sm" type="submit">Save</button>
+            <button class="btn btn-secondary btn-sm" type="button" data-action="cancel">
+              Cancel
+            </button>
+            <p class="form-error" role="alert" data-ref="edit-error"></p>
+          </div>
+        </form>
+      </li>
+    </template>
+
+    <template id="tpl-upload">
+      <li class="upload">
+        <span class="pill" data-ref="pill"></span>
+        <div class="upload-text">
+          <p class="file-name" data-ref="name"></p>
+          <p class="file-meta" data-ref="meta"></p>
+        </div>
+        <button
+          class="icon-btn"
+          type="button"
+          data-action="dismiss"
+          aria-label="Cancel"
+          title="Cancel"
+        >
+          <svg class="icon"><use href="#i-x" /></svg>
+        </button>
+        <span class="progress" aria-hidden="true"><span></span></span>
+      </li>
+    </template>
+
+    <template id="tpl-item">
+      <li class="plain-item">
+        <div>
+          <p class="title-sm" data-ref="title"></p>
+          <p class="meta" data-ref="meta"></p>
+        </div>
+        <button class="text-link danger" type="button" data-ref="action" hidden>Remove</button>
+      </li>
+    </template>
+
+    <!-- ── Icons ──────────────────────────────────────────────── -->
+    <svg xmlns="http://www.w3.org/2000/svg" hidden>
+      <symbol id="i-logo" viewBox="0 0 32 32">
+        <rect width="32" height="32" rx="8" fill="#f54e00" />
+        <path
+          d="M12.5 23V9.5h9.5M12.5 16.5h6.5"
+          fill="none"
+          stroke="#f7f7f4"
+          stroke-width="3.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24">
+        <path d="M12 15V4M7 9l5-5 5 5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+      </symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24">
+        <rect x="9" y="9" width="11" height="11" rx="2" />
+        <path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5 10 17l9-10" /></symbol>
+      <symbol id="i-edit" viewBox="0 0 24 24">
+        <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4" />
+      </symbol>
+      <symbol id="i-replace" viewBox="0 0 24 24">
+        <path d="M4 11a8 8 0 0 1 14-5l2 2M20 4v4h-4M20 13a8 8 0 0 1-14 5l-2-2M4 20v-4h4" />
+      </symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24">
+        <path
+          d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"
+        />
+      </symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="6.5" />
+        <path d="m20 20-4.2-4.2" />
+      </symbol>
+      <symbol id="i-key" viewBox="0 0 24 24">
+        <circle cx="8" cy="15" r="4.5" />
+        <path d="M11.2 11.8 20 3M16.5 6.5l3 3M14 9l2 2" />
+      </symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24">
+        <rect x="3" y="5" width="18" height="14" rx="3" />
+        <path d="M7.5 12h.01M10.5 12h.01M13.5 12h.01M16.5 12h.01" stroke-width="2.6" />
+      </symbol>
+      <symbol id="i-passkey" viewBox="0 0 24 24">
+        <path
+          d="M12 11v3a8 8 0 0 1-1.5 4.5M8 8.5A4.5 4.5 0 0 1 16.5 11v2a13 13 0 0 1-.7 4.3M5 17a11 11 0 0 0 .8-4v-2a6.2 6.2 0 0 1 1-3.4M4.2 6.4A9 9 0 0 1 20.5 10M20.5 13.5c0 1.6-.2 3.1-.5 4.5M8.5 12v1a13 13 0 0 1-1.3 5.8"
+        />
+      </symbol>
+    </svg>
+  </body>
+</html>

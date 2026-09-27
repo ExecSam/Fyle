@@ -1,0 +1,11 @@
+services:
+  fyle:
+    build: .
+    image: fyle:latest
+    container_name: fyle
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - '${HOST_PORT:-8080}:3000'
+    volumes:
+      - ./data:/data
